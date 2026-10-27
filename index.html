@@ -675,7 +675,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 /* Layout: dama.org look (white page, navy table, Raleway). Finder card = search bar, then globe/map with a side panel; directory table below. Single light theme on purpose: dama.org is white. */
 :root{
   --navy:#003366; --navy2:#004080; --link:#5a8db5; --aff:#2cb75c; --form:#45b6fe; --you:#f28c28;
-  --ink:#1f2d3d; --text:#555555; --muted:#6b7a8c; --line:#dfe6ee; --alt:#e6f0ff; --bg:#ffffff; --soft:#f4f7fb;
+  --ink:#1f2d3d; --text:#555555; --muted:#6b7a8c; --line:#c5d2e0; --alt:#e6f0ff; --bg:#ffffff; --soft:#f4f7fb;
   --shadow:0 12px 32px rgba(0,51,102,.10);
   --f:"Raleway","Helvetica Neue",Arial,sans-serif; --f-table:Arial,"Helvetica Neue",sans-serif;
   color-scheme:light;
@@ -836,6 +836,7 @@ td.name{font-weight:700}
   .hint{display:none}
 }
 
+@media (min-width:861px){.viz{height:560px;align-self:start}.side{max-height:none;overflow:visible}}
 /* embed mode for dama.org: only stats + finder; dama.org keeps its own intro and table */
 .note,.intro>p,.dir{display:none!important}
 .intro{padding-block:6px 10px}
@@ -935,7 +936,7 @@ function renderSide(){
   if(cty&&!sel){const l=cty.properties.ch;h+=`<h2>Chapters in ${esc(cty.properties.name)} (${l.length})</h2>`+l.map(c=>`<button type="button" class="near" data-id="${c.id}">${flag(c.i)}<span><b>${esc(c.n)}</b><small>${esc(c.y)}${c.s?', '+esc(c.s):''}</small></span>${pill(c)}</button>`).join('')}
   if(sel){h+=`<h2>Selected chapter</h2>${card(sel,true)}`}
   if(nearest.length){h+=`<h2>${you?'Closest to '+esc(you.label):'Closest chapters'}</h2>`+nearest.map(x=>`<button type="button" class="near" data-id="${x.c.id}">${flag(x.c.i)}<span><b>${esc(x.c.n)}</b><small>${esc(x.c.y)}, ${esc(x.c.c)}</small></span><span class="km">${km(x.d)}</span></button>`).join('')}
-  if(!sel&&!nearest.length&&!cty){h=`<h2>Find your chapter</h2><div class="empty-side">Search for your city, or press <b>Use my location</b>. We’ll show the three closest DAMA chapters and draw the route on the globe.<ul><li>Click any dot for the chapter’s website and LinkedIn</li><li>Click a country to list its chapters</li><li>Switch to <b>Map</b> for a flat view</li></ul></div><h2>Newest affiliations</h2>`+['DAMA Dallas','DAMA India – Bengaluru','DAMA Rio de Janeiro','DAMA Syria'].map(n=>CHAPTERS.find(c=>c.n===n)).filter(Boolean).map(c=>`<button type="button" class="near" data-id="${c.id}">${flag(c.i)}<span><b>${esc(c.n)}</b><small>${esc(c.y)}, ${esc(c.c)}</small></span>${pill(c)}</button>`).join('')}
+  if(!sel&&!nearest.length&&!cty){h=`<h2>Find your chapter</h2><div class="empty-side">Search your city or tap <b>Use my location</b> to see your nearest chapters. Click any dot or country for details.</div><h2>Newest affiliations</h2>`+['DAMA Dallas','DAMA India – Bengaluru','DAMA Rio de Janeiro'].map(n=>CHAPTERS.find(c=>c.n===n)).filter(Boolean).map(c=>`<button type="button" class="near" data-id="${c.id}">${flag(c.i)}<span><b>${esc(c.n)}</b><small>${esc(c.y)}, ${esc(c.c)}</small></span>${pill(c)}</button>`).join('')}
   side.innerHTML=h; side.querySelectorAll('.near').forEach(b=>b.onclick=()=>select(CHAPTERS[+b.dataset.id]));
 }
 const card=(c,s)=>`<div class="chap${s?' sel':''}"><h3>${flag(c.i)}${esc(c.n)}</h3><div class="where">${esc([c.y,c.s,c.c].filter(Boolean).join(', '))}</div><div class="row">${pill(c)}${c.dist!=null?`<span style="font-size:13px;color:var(--muted)">${km(c.dist)} away</span>`:''}</div><div class="row">${links(c)}</div></div>`;
