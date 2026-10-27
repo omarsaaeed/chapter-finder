@@ -669,6 +669,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 		print-color-adjust: exact;
 		}
 	}
+.embedded .wrap{max-width:none;padding-left:0;padding-right:0}
 </style>
 <style>
 /* Layout: dama.org look (white page, navy table, Raleway). Finder card = search bar, then globe/map with a side panel; directory table below. Single light theme on purpose: dama.org is white. */
@@ -1101,7 +1102,7 @@ renderSide(); renderRows();
 </script>
 <script>
 /* tell the dama.org page how tall this finder is, so the iframe has no inner scrollbar */
-(function(){if(window.parent===window)return;document.documentElement.style.overflowY='hidden';let last=0;const send=()=>{let b=0;for(const el of document.body.children){if(el.tagName==='SCRIPT'||el.tagName==='STYLE')continue;const r=el.getBoundingClientRect();if(r.height)b=Math.max(b,r.bottom+scrollY+(parseFloat(getComputedStyle(el).marginBottom)||0))}const h=Math.ceil(b+(parseFloat(getComputedStyle(document.body).paddingBottom)||0))+4;if(Math.abs(h-last)>2){last=h;parent.postMessage({type:'dama-finder-height',height:h},'*')}};
+(function(){if(window.parent===window)return;document.documentElement.style.overflowY='hidden';document.documentElement.classList.add('embedded');let last=0;const send=()=>{let b=0;for(const el of document.body.children){if(el.tagName==='SCRIPT'||el.tagName==='STYLE')continue;const r=el.getBoundingClientRect();if(r.height)b=Math.max(b,r.bottom+scrollY+(parseFloat(getComputedStyle(el).marginBottom)||0))}const h=Math.ceil(b+(parseFloat(getComputedStyle(document.body).paddingBottom)||0))+4;if(Math.abs(h-last)>2){last=h;parent.postMessage({type:'dama-finder-height',height:h},'*')}};
 new ResizeObserver(send).observe(document.body);addEventListener('resize',send);addEventListener('load',send);setTimeout(send,1500)})();
 </script>
 
