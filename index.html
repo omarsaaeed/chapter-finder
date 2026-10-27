@@ -746,6 +746,11 @@ a{color:var(--navy2)}
 @media (pointer:coarse){#globe canvas{touch-action:pan-y!important}#map.leaflet-container{touch-action:pan-y!important}}
 .hint{position:absolute;right:14px;bottom:14px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:4px 10px;border-radius:999px;z-index:500}
 .side{border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto;max-height:560px;background:var(--bg)}
+.vreset{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:650;display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;box-shadow:0 4px 14px rgba(0,51,102,.12)}
+.vreset:hover{background:var(--alt)}
+.vreset[hidden]{display:none}
+.sreset{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
+.sreset:hover{background:var(--alt)}
 .side h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:700}
 .chap{border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px;background:var(--bg)}
 .chap.sel{border-color:var(--navy);box-shadow:0 6px 18px rgba(0,51,102,.12)}
@@ -863,6 +868,7 @@ td.name{font-weight:700}
       <div class="viz">
         <div id="globe"></div>
         <div id="map" hidden></div>
+        <button type="button" id="resetV" class="vreset" hidden aria-label="Reset the view and show all chapters">&#8634; Reset view</button>
         <div class="vlegend"><span><i style="background:#3ee07f"></i>Affiliated</span><span><i style="background:#5cc6ff"></i>Forming</span><span id="lgYou" hidden><i style="background:var(--you)"></i>You</span></div>
         <div class="twofinger" id="twofinger" aria-hidden="true">Use two fingers to move the globe</div>
         <div class="hint" id="hint">Drag to spin · hover a country · click a dot</div>
@@ -929,7 +935,18 @@ function stats(list){const v={all:list.length,countries:new Set(list.map(c=>c.i)
 requestAnimationFrame(()=>stats(CHAPTERS));
 
 /* ---------- shared state ---------- */
-let sel=null, you=null, nearest=[], view='globe';
+let sel=null, you=null, nearest=[], view='globe', moved=false;
+function updReset(){const b=document.getElementById('resetV');if(b)b.hidden=!(sel||nearest.length||cty||moved)}
+function resetAll(){
+  cty=null; sel=null; you=null; nearest=[]; moved=false; CHAPTERS.forEach(c=>c.dist=null);
+  const lg=document.getElementById('lgYou'); if(lg)lg.hidden=true;
+  const qq=document.getElementById('q'), sg=document.getElementById('sug'); if(qq)qq.value=''; if(sg)sg.hidden=true;
+  renderSide(); refreshGlobe(); refreshMap(); highlightRow();
+  if(G){const c=G.controls(); c.autoRotate=!reduceMotion; G.pointOfView({lat:28,lng:-35,altitude:1.9},1200)}
+  if(M){M.flyTo([25,0],2,{duration:1})}
+  updReset();
+}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&(sel||nearest.length||cty))resetAll()});
 const side=document.getElementById('side');
 function renderSide(){
   let h='';
@@ -937,7 +954,9 @@ function renderSide(){
   if(sel){h+=`<h2>Selected chapter</h2>${card(sel,true)}`}
   if(nearest.length){h+=`<h2>${you?'Closest to '+esc(you.label):'Closest chapters'}</h2>`+nearest.map(x=>`<button type="button" class="near" data-id="${x.c.id}">${flag(x.c.i)}<span><b>${esc(x.c.n)}</b><small>${esc(x.c.y)}, ${esc(x.c.c)}</small></span><span class="km">${km(x.d)}</span></button>`).join('')}
   if(!sel&&!nearest.length&&!cty){h=`<h2>Find your chapter</h2><div class="empty-side">Search your city or tap <b>Use my location</b> to see your nearest chapters. Click any dot or country for details.</div><h2>Newest affiliations</h2>`+['DAMA Dallas','DAMA India – Bengaluru','DAMA Rio de Janeiro'].map(n=>CHAPTERS.find(c=>c.n===n)).filter(Boolean).map(c=>`<button type="button" class="near" data-id="${c.id}">${flag(c.i)}<span><b>${esc(c.n)}</b><small>${esc(c.y)}, ${esc(c.c)}</small></span>${pill(c)}</button>`).join('')}
-  side.innerHTML=h; side.querySelectorAll('.near').forEach(b=>b.onclick=()=>select(CHAPTERS[+b.dataset.id]));
+  const busy=!!(sel||nearest.length||cty);
+  if(busy)h=`<button type="button" class="sreset" id="resetS">&#8592; Back to all chapters</button>`+h;
+  side.innerHTML=h; const rs=document.getElementById('resetS'); if(rs)rs.onclick=resetAll; updReset(); side.querySelectorAll('.near').forEach(b=>b.onclick=()=>select(CHAPTERS[+b.dataset.id]));
 }
 const card=(c,s)=>`<div class="chap${s?' sel':''}"><h3>${flag(c.i)}${esc(c.n)}</h3><div class="where">${esc([c.y,c.s,c.c].filter(Boolean).join(', '))}</div><div class="row">${pill(c)}${c.dist!=null?`<span style="font-size:13px;color:var(--muted)">${km(c.dist)} away</span>`:''}</div><div class="row">${links(c)}</div></div>`;
 
@@ -994,7 +1013,7 @@ try{
   if(TOUCH){ctl.touches={ONE:null,TWO:3}; /* one finger: nothing (page scrolls); two fingers: pinch to zoom + drag to turn */
     const cv=G.renderer().domElement; const keep=()=>{cv.style.touchAction='pan-y'}; keep(); setTimeout(keep,500);
     gEl.addEventListener('touchstart',e=>{if(e.touches.length>=2)ctl.autoRotate=false},{capture:true,passive:true});}
-  gEl.addEventListener('pointerdown',()=>{ctl.autoRotate=false});
+  gEl.addEventListener('pointerdown',()=>{ctl.autoRotate=false;moved=true;updReset()});
   G.pointOfView({lat:28,lng:-35,altitude:1.9},0);
   const size=()=>{G.width(viz.clientWidth).height(viz.clientHeight)}; size(); new ResizeObserver(size).observe(viz);
   if(!reduceMotion) setInterval(()=>{if(!you&&view==='globe')G.arcsData(randomArcs(18))},7000);
@@ -1098,6 +1117,8 @@ function highlightRow(){rows.querySelectorAll('tr[data-id]').forEach(tr=>tr.clas
 document.getElementById('tq').oninput=e=>{F.q=e.target.value;renderRows()};
 document.getElementById('tstage').onchange=e=>{F.st=e.target.value;renderRows()};
 document.getElementById('tregion').onchange=e=>{F.r=e.target.value;renderRows()};
+document.getElementById('resetV').onclick=resetAll;
+document.getElementById('q').addEventListener('search',e=>{if(!e.target.value&&(sel||nearest.length||cty))resetAll()});
 renderSide(); renderRows();
 })();
 </script>
