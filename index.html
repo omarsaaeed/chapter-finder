@@ -978,7 +978,7 @@ function refreshGlobe(){ if(!G)return; G.pointsData([...CHAPTERS]).polygonAltitu
 
 /* ---------- MAP: same blue look. On dama.org: CARTO dark street map with the blue countries on top ---------- */
 let tilesOK=null; const tileWait=[];
-(function probe(){let done=false;const fin=v=>{if(done)return;done=true;tilesOK=v;tileWait.splice(0).forEach(f=>f(v))};const im=new Image();im.onload=()=>fin(true);im.onerror=()=>fin(false);im.src='https://a.basemaps.cartocdn.com/dark_all/1/0/0.png';setTimeout(()=>fin(false),5000)})();
+(function probe(){let done=false;const fin=v=>{if(done)return;done=true;tilesOK=v;tileWait.splice(0).forEach(f=>f(v))};const im=new Image();im.onload=()=>fin(true);im.onerror=()=>fin(false);im.src='https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/1/0/0';setTimeout(()=>fin(false),5000)})();
 const whenTiles=f=>tilesOK===null?tileWait.push(f):f(tilesOK);
 let M=null, markers={}, youMk=null, ctyLayer=null;
 const flatCountries={type:'FeatureCollection',features:countries.map(f=>{const fix=r=>{const crosses=r.some((p,i)=>i&&Math.abs(p[0]-r[i-1][0])>180);return crosses?r.map(p=>[p[0]<0?p[0]+360:p[0],p[1]]):r};
@@ -988,7 +988,7 @@ function mapStyle(f,tiles){const z=M?M.getZoom():2;const base={color:'#6fb6ff',w
 function initMap(){
   if(M)return; M=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxBounds:[[-85,-400],[85,400]]}).setView([25,0],2);
   whenTiles(ok=>{
-    if(ok){L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap contributors © CARTO'}).addTo(M)}
+    if(ok){L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Tiles © Esri, HERE, Garmin, © OpenStreetMap contributors'}).addTo(M);M.setMaxZoom(16);M.createPane('labels');M.getPane('labels').style.zIndex=450;M.getPane('labels').style.pointerEvents='none';L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,pane:'labels'}).addTo(M)}
     else{M.setMaxZoom(8);M.attributionControl.setPrefix('Preview. Street names load on dama.org')}
     ctyLayer=L.geoJSON(flatCountries,{style:f=>mapStyle(f,ok),onEachFeature:(f,l)=>{l.bindTooltip(clabel(f),{sticky:true,className:'ltip',opacity:1});l.on('click',()=>{if(f.properties.ch.length)showCountry(countries.find(c=>c.properties===f.properties))})}}).addTo(M);
     M.on('zoomend',()=>ctyLayer.setStyle(f=>mapStyle(f,ok)));
