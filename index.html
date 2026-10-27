@@ -1101,7 +1101,7 @@ renderSide(); renderRows();
 </script>
 <script>
 /* tell the dama.org page how tall this finder is, so the iframe has no inner scrollbar */
-(function(){if(window.parent===window)return;let last=0;const send=()=>{let b=0;for(const el of document.body.children){if(el.tagName==='SCRIPT'||el.tagName==='STYLE')continue;const r=el.getBoundingClientRect();if(r.height)b=Math.max(b,r.bottom+scrollY+(parseFloat(getComputedStyle(el).marginBottom)||0))}const h=Math.ceil(b+(parseFloat(getComputedStyle(document.body).paddingBottom)||0));if(Math.abs(h-last)>2){last=h;parent.postMessage({type:'dama-finder-height',height:h},'*')}};
+(function(){if(window.parent===window)return;document.documentElement.style.overflowY='hidden';let last=0;const send=()=>{let b=0;for(const el of document.body.children){if(el.tagName==='SCRIPT'||el.tagName==='STYLE')continue;const r=el.getBoundingClientRect();if(r.height)b=Math.max(b,r.bottom+scrollY+(parseFloat(getComputedStyle(el).marginBottom)||0))}const h=Math.ceil(b+(parseFloat(getComputedStyle(document.body).paddingBottom)||0))+4;if(Math.abs(h-last)>2){last=h;parent.postMessage({type:'dama-finder-height',height:h},'*')}};
 new ResizeObserver(send).observe(document.body);addEventListener('resize',send);addEventListener('load',send);setTimeout(send,1500)})();
 </script>
 
