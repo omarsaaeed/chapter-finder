@@ -738,6 +738,9 @@ a{color:var(--navy2)}
 .vlegend{position:absolute;left:14px;bottom:14px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:999px;padding:6px 14px;display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--ink);z-index:500}
 .vlegend span{display:inline-flex;gap:6px;align-items:center}
 .vlegend i{width:10px;height:10px;border-radius:50%}
+.twofinger{position:absolute;inset:0;z-index:700;display:grid;place-items:center;background:rgba(0,30,66,.55);color:#fff;font-weight:700;font-size:16px;text-align:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.twofinger.show{opacity:1}
+@media (pointer:coarse){#globe canvas{touch-action:pan-y!important}#map.leaflet-container{touch-action:pan-y!important}}
 .hint{position:absolute;right:14px;bottom:14px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:4px 10px;border-radius:999px;z-index:500}
 .side{border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto;max-height:560px;background:var(--bg)}
 .side h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:700}
@@ -857,6 +860,7 @@ td.name{font-weight:700}
         <div id="globe"></div>
         <div id="map" hidden></div>
         <div class="vlegend"><span><i style="background:#3ee07f"></i>Affiliated</span><span><i style="background:#5cc6ff"></i>Forming</span><span id="lgYou" hidden><i style="background:var(--you)"></i>You</span></div>
+        <div class="twofinger" id="twofinger" aria-hidden="true">Use two fingers to move the globe</div>
         <div class="hint" id="hint">Drag to spin · hover a country · click a dot</div>
       </div>
       <aside class="side" id="side" aria-live="polite"></aside>
@@ -933,6 +937,23 @@ function renderSide(){
 }
 const card=(c,s)=>`<div class="chap${s?' sel':''}"><h3>${flag(c.i)}${esc(c.n)}</h3><div class="where">${esc([c.y,c.s,c.c].filter(Boolean).join(', '))}</div><div class="row">${pill(c)}${c.dist!=null?`<span style="font-size:13px;color:var(--muted)">${km(c.dist)} away</span>`:''}</div><div class="row">${links(c)}</div></div>`;
 
+/* ---------- touch screens: one finger scrolls the page, two fingers move the globe or map ---------- */
+const TOUCH=matchMedia('(pointer: coarse)').matches||('ontouchstart' in window&&navigator.maxTouchPoints>0);
+let activeTouches=0, tfTimer=null;
+if(TOUCH){const h=document.getElementById('hint');if(h)h.textContent='Two fingers to turn · tap a dot';}
+if(TOUCH){
+  const vz=document.querySelector('.viz'), tf=document.getElementById('twofinger');
+  let startY=0,startX=0,shown=false;
+  vz.addEventListener('touchstart',e=>{activeTouches=e.touches.length;if(e.touches.length===1){startX=e.touches[0].clientX;startY=e.touches[0].clientY;shown=false}},{passive:true,capture:true});
+  vz.addEventListener('touchmove',e=>{
+    if(e.touches.length>=2){e.preventDefault();return}  /* keep the page still while two fingers work the globe/map */
+    const d=Math.hypot(e.touches[0].clientX-startX,e.touches[0].clientY-startY);
+    if(d>18&&!shown){shown=true;tf.textContent=view==='map'?'Use two fingers to move the map':'Use two fingers to move the globe';tf.classList.add('show');clearTimeout(tfTimer);tfTimer=setTimeout(()=>tf.classList.remove('show'),1800)}
+  },{passive:false,capture:true});
+  vz.addEventListener('touchend',e=>{activeTouches=e.touches.length},{passive:true,capture:true});
+  vz.addEventListener('touchcancel',e=>{activeTouches=e.touches.length},{passive:true,capture:true});
+}
+
 /* ---------- GLOBE: blue "Midnight" globe on the white page ---------- */
 const gEl=document.getElementById('globe'), viz=document.querySelector('.viz');
 const countries=topojson.feature(WORLD,WORLD.objects.countries).features.filter(f=>f.properties.name!=='Antarctica');
@@ -966,6 +987,9 @@ try{
    .labelsData([]).labelLat('la').labelLng('lo').labelText('label').labelSize(1.15).labelDotRadius(0.55).labelColor(()=>'#ffb05c').labelResolution(3).labelAltitude(0.03);
   const m=G.globeMaterial(); m.color.set('#0a2348'); m.emissive&&m.emissive.set('#06183a'); m.emissiveIntensity=0.5; m.shininess=14;
   const ctl=G.controls(); ctl.autoRotate=!reduceMotion; ctl.autoRotateSpeed=0.55; ctl.enableDamping=true;
+  if(TOUCH){ctl.touches={ONE:null,TWO:3}; /* one finger: nothing (page scrolls); two fingers: pinch to zoom + drag to turn */
+    const cv=G.renderer().domElement; const keep=()=>{cv.style.touchAction='pan-y'}; keep(); setTimeout(keep,500);
+    gEl.addEventListener('touchstart',e=>{if(e.touches.length>=2)ctl.autoRotate=false},{capture:true,passive:true});}
   gEl.addEventListener('pointerdown',()=>{ctl.autoRotate=false});
   G.pointOfView({lat:28,lng:-35,altitude:1.9},0);
   const size=()=>{G.width(viz.clientWidth).height(viz.clientHeight)}; size(); new ResizeObserver(size).observe(viz);
@@ -986,7 +1010,7 @@ const flatCountries={type:'FeatureCollection',features:countries.map(f=>{const f
 function mapStyle(f,tiles){const z=M?M.getZoom():2;const base={color:'#6fb6ff',weight:0.9,fillColor:f.properties===cty?.properties?'#3a7bd0':f.properties.ch.length?'#2459a0':'#153a6c'};
   return tiles?{...base,fillOpacity:z<5?0.75:z<7?0.35:0.06,opacity:z<7?0.8:0.25}:{...base,fillOpacity:1}}
 function initMap(){
-  if(M)return; M=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxBounds:[[-85,-400],[85,400]]}).setView([25,0],2);
+  if(M)return; M=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxBounds:[[-85,-400],[85,400]],dragging:!TOUCH,tap:false}).setView([25,0],2);
   whenTiles(ok=>{
     if(ok){L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Tiles © Esri, HERE, Garmin, © OpenStreetMap contributors'}).addTo(M);M.setMaxZoom(16);M.createPane('labels');M.getPane('labels').style.zIndex=450;M.getPane('labels').style.pointerEvents='none';L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,pane:'labels'}).addTo(M)}
     else{M.setMaxZoom(8);M.attributionControl.setPrefix('Preview. Street names load on dama.org')}
@@ -1028,7 +1052,7 @@ document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
   view=b.dataset.v; document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
   document.getElementById('globe').hidden=view!=='globe'; document.getElementById('map').hidden=view!=='map';
   if(G){view==='globe'?G.resumeAnimation():G.pauseAnimation()}
-  document.getElementById('hint').textContent=view==='globe'?'Drag to spin · hover a country · click a dot':'Drag to move · scroll to zoom · click a dot';
+  document.getElementById('hint').textContent=TOUCH?(view==='globe'?'Two fingers to turn · tap a dot':'Two fingers to move · tap a dot'):(view==='globe'?'Drag to spin · hover a country · click a dot':'Drag to move · scroll to zoom · click a dot');
   if(view==='map'){initMap();setTimeout(()=>{M.invalidateSize();refreshMap(); if(you)showNearest(you); else if(sel)flyTo(sel); else if(cty)showCountry(cty)},60)}
   else if(sel)flyTo(sel);
 });
