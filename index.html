@@ -738,6 +738,8 @@ a{color:var(--navy2)}
 .vlegend{position:absolute;left:14px;bottom:14px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:999px;padding:6px 14px;display:flex;gap:14px;font-size:12.5px;font-weight:600;color:var(--ink);z-index:500}
 .vlegend span{display:inline-flex;gap:6px;align-items:center}
 .vlegend i{width:10px;height:10px;border-radius:50%}
+.viz.mapmode .vlegend{top:12px;bottom:auto;left:auto;right:12px}
+#map .leaflet-control-attribution{font-size:10px;line-height:1.4;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.75)}
 .twofinger{position:absolute;inset:0;z-index:700;display:grid;place-items:center;background:rgba(0,30,66,.55);color:#fff;font-weight:700;font-size:16px;text-align:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
 .twofinger.show{opacity:1}
 @media (pointer:coarse){#globe canvas{touch-action:pan-y!important}#map.leaflet-container{touch-action:pan-y!important}}
@@ -1012,8 +1014,9 @@ function mapStyle(f,tiles){const z=M?M.getZoom():2;const base={color:'#6fb6ff',w
 function initMap(){
   if(M)return; M=L.map('map',{zoomControl:true,worldCopyJump:true,minZoom:2,maxBounds:[[-85,-400],[85,400]],dragging:!TOUCH,tap:false}).setView([25,0],2);
   whenTiles(ok=>{
-    if(ok){L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Tiles © Esri, HERE, Garmin, © OpenStreetMap contributors'}).addTo(M);M.setMaxZoom(16);M.createPane('labels');M.getPane('labels').style.zIndex=450;M.getPane('labels').style.pointerEvents='none';L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,pane:'labels'}).addTo(M)}
+    if(ok){L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'© Esri, HERE, Garmin · © OpenStreetMap'}).addTo(M);M.setMaxZoom(16);M.createPane('labels');M.getPane('labels').style.zIndex=450;M.getPane('labels').style.pointerEvents='none';L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,pane:'labels'}).addTo(M)}
     else{M.setMaxZoom(8);M.attributionControl.setPrefix('Preview. Street names load on dama.org')}
+    M.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     ctyLayer=L.geoJSON(flatCountries,{style:f=>mapStyle(f,ok),onEachFeature:(f,l)=>{l.bindTooltip(clabel(f),{sticky:true,className:'ltip',opacity:1});l.on('click',()=>{if(f.properties.ch.length)showCountry(countries.find(c=>c.properties===f.properties))})}}).addTo(M);
     M.on('zoomend',()=>ctyLayer.setStyle(f=>mapStyle(f,ok)));
   });
@@ -1050,6 +1053,7 @@ function showNearest(place){
 }
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
   view=b.dataset.v; document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  viz.classList.toggle('mapmode',view==='map');
   document.getElementById('globe').hidden=view!=='globe'; document.getElementById('map').hidden=view!=='map';
   if(G){view==='globe'?G.resumeAnimation():G.pauseAnimation()}
   document.getElementById('hint').textContent=TOUCH?(view==='globe'?'Two fingers to turn · tap a dot':'Two fingers to move · tap a dot'):(view==='globe'?'Drag to spin · hover a country · click a dot':'Drag to move · scroll to zoom · click a dot');
@@ -1068,12 +1072,13 @@ function suggest(v){const n=norm(v);if(n.length<2)return[];const o=[];
   return o.sort((a,b)=>a.s-b.s).slice(0,8)}
 function d3c(f){let x=0,y=0,n=0;const walk=a=>{if(typeof a[0]==='number'){x+=a[0];y+=a[1];n++}else a.forEach(walk)};walk(f.geometry.coordinates);return[x/n,y/n]}
 function drawSug(){if(!S.length){sug.hidden=true;return}sug.innerHTML=S.map((s,i)=>`<button type="button" role="option" aria-selected="${i===act}" data-i="${i}">${s.i?flag(s.i):''}<span>${esc(s.label)}</span><small>${esc(s.sub)}</small></button>`).join('');sug.hidden=false;sug.querySelectorAll('button').forEach(b=>b.onmousedown=e=>{e.preventDefault();pick(S[+b.dataset.i])})}
-function pick(s){sug.hidden=true;q.value=s.label;if(s.k==='chapter'){you=null;nearest=[];document.getElementById('lgYou').hidden=true;select(s.c)}else showNearest({la:s.la,lo:s.lo,label:s.label})}
+function pick(s){sug.hidden=true;S=[];if(TOUCH)q.blur();q.value=s.label;if(s.k==='chapter'){you=null;nearest=[];document.getElementById('lgYou').hidden=true;select(s.c)}else showNearest({la:s.la,lo:s.lo,label:s.label})}
 q.addEventListener('input',()=>{S=suggest(q.value);act=-1;drawSug()});
 q.addEventListener('keydown',e=>{if(e.key==='ArrowDown'&&S.length){e.preventDefault();act=(act+1)%S.length;drawSug()}else if(e.key==='ArrowUp'&&S.length){e.preventDefault();act=(act-1+S.length)%S.length;drawSug()}else if(e.key==='Enter'){e.preventDefault();go()}else if(e.key==='Escape')sug.hidden=true});
 q.addEventListener('blur',()=>setTimeout(()=>sug.hidden=true,150));
 function msg(t){nearest=[];sel=null;renderSide();side.insertAdjacentHTML('afterbegin',`<div class="empty-side" style="color:#b54708">${t}</div>`)}
 function go(){if(!q.value.trim()){q.focus();return}const s=S[act>=0?act:0]||suggest(q.value)[0];if(!s){msg(`We couldn’t find “${esc(q.value)}”. Try a larger nearby city or the country.`);return}
+  sug.hidden=true; S=[]; if(TOUCH)q.blur();
   if(s.k==='chapter')showNearest({la:s.la,lo:s.lo,label:s.c.y});else pick(s)}
 document.getElementById('nearestBtn').onclick=go;
 document.getElementById('locBtn').onclick=()=>{if(!navigator.geolocation){msg('This browser can’t share its location. Type your city instead.');return}
