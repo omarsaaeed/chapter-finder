@@ -746,6 +746,13 @@ a{color:var(--navy2)}
 @media (pointer:coarse){#globe canvas{touch-action:pan-y!important}#map.leaflet-container{touch-action:pan-y!important}}
 .hint{position:absolute;right:14px;bottom:14px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:4px 10px;border-radius:999px;z-index:500}
 .side{border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto;max-height:560px;background:var(--bg)}
+#locBtn{border-color:#f28c28;color:#c4600a;background:#fff6ec}
+#locBtn:hover{background:#ffe9d2;border-color:#e07b12}
+.startcta{border:1px solid #f6c48f;background:#fff6ec;border-radius:14px;padding:14px;display:grid;gap:8px}
+.startcta b{color:var(--ink);font-size:15px}
+.startcta p{margin:0;font-size:13.5px;color:var(--text)}
+.startcta a{justify-self:start;display:inline-flex;align-items:center;gap:6px;background:#f28c28;color:#fff;font-weight:700;font-size:13.5px;text-decoration:none;border-radius:999px;padding:8px 14px}
+.startcta a:hover{background:#e07b12}
 .vreset{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:650;display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;box-shadow:0 4px 14px rgba(0,51,102,.12)}
 .vreset:hover{background:var(--alt)}
 .vreset[hidden]{display:none}
@@ -935,10 +942,11 @@ function stats(list){const v={all:list.length,countries:new Set(list.map(c=>c.i)
 requestAnimationFrame(()=>stats(CHAPTERS));
 
 /* ---------- shared state ---------- */
-let sel=null, you=null, nearest=[], view='globe', moved=false;
-function updReset(){const b=document.getElementById('resetV');if(b)b.hidden=!(sel||nearest.length||cty||moved)}
+let sel=null, you=null, nearest=[], view='globe', moved=false, gap=null;
+function updReset(){const b=document.getElementById('resetV');if(b)b.hidden=!(sel||nearest.length||cty||moved||gap)}
+function noChapter(f){cty=null;sel=null;you=null;nearest=[];CHAPTERS.forEach(c=>c.dist=null);const lg=document.getElementById('lgYou');if(lg)lg.hidden=true;gap={none:true,where:f.properties.name,d:null};renderSide();refreshGlobe();refreshMap();highlightRow()}
 function resetAll(){
-  cty=null; sel=null; you=null; nearest=[]; moved=false; CHAPTERS.forEach(c=>c.dist=null);
+  cty=null; sel=null; you=null; nearest=[]; moved=false; gap=null; CHAPTERS.forEach(c=>c.dist=null);
   const lg=document.getElementById('lgYou'); if(lg)lg.hidden=true;
   const qq=document.getElementById('q'), sg=document.getElementById('sug'); if(qq)qq.value=''; if(sg)sg.hidden=true;
   renderSide(); refreshGlobe(); refreshMap(); highlightRow();
@@ -954,7 +962,8 @@ function renderSide(){
   if(sel){h+=`<h2>Selected chapter</h2>${card(sel,true)}`}
   if(nearest.length){h+=`<h2>${you?'Closest to '+esc(you.label):'Closest chapters'}</h2>`+nearest.map(x=>`<button type="button" class="near" data-id="${x.c.id}">${flag(x.c.i)}<span><b>${esc(x.c.n)}</b><small>${esc(x.c.y)}, ${esc(x.c.c)}</small></span><span class="km">${km(x.d)}</span></button>`).join('')}
   if(!sel&&!nearest.length&&!cty){h=`<h2>Find your chapter</h2><div class="empty-side">Search your city or tap <b>Use my location</b> to see your nearest chapters. Click any dot or country for details.</div><h2>Newest affiliations</h2>`+['DAMA Dallas','DAMA India – Bengaluru','DAMA Rio de Janeiro'].map(n=>CHAPTERS.find(c=>c.n===n)).filter(Boolean).map(c=>`<button type="button" class="near" data-id="${c.id}">${flag(c.i)}<span><b>${esc(c.n)}</b><small>${esc(c.y)}, ${esc(c.c)}</small></span>${pill(c)}</button>`).join('')}
-  const busy=!!(sel||nearest.length||cty);
+  if(gap){h=`<div class="startcta"><b>${gap.none?'No DAMA chapter in '+esc(gap.where)+' yet':'No DAMA chapter near '+esc(gap.where)+' yet'}</b><p>${gap.d!=null?'The closest one is '+km(gap.d)+' away. ':''}Want to bring DAMA to your area? See how to start a chapter.</p><a href="https://dama.org/chapters-community/start-a-chapter/" target="_top" rel="noopener">Start a chapter &#8594;</a></div>`+h}
+  const busy=!!(sel||nearest.length||cty||gap);
   if(busy)h=`<button type="button" class="sreset" id="resetS">&#8592; Back to all chapters</button>`+h;
   side.innerHTML=h; const rs=document.getElementById('resetS'); if(rs)rs.onclick=resetAll; updReset(); side.querySelectorAll('.near').forEach(b=>b.onclick=()=>select(CHAPTERS[+b.dataset.id]));
 }
@@ -998,7 +1007,7 @@ try{
    .polygonsData(countries).polygonAltitude(f=>f===hov||f===cty?0.02:0.006).polygonCapColor(capCol)
    .polygonSideColor(()=>'rgba(92,198,255,0.15)').polygonStrokeColor(()=>'#6fb6ff').polygonsTransitionDuration(250)
    .polygonLabel(clabel).onPolygonHover(f=>{hov=f;gEl.style.cursor=f&&f.properties.ch.length?'pointer':'grab';G.polygonAltitude(G.polygonAltitude()).polygonCapColor(capCol)})
-   .onPolygonClick(f=>{if(f.properties.ch.length)showCountry(f)})
+   .onPolygonClick(f=>{if(f.properties.ch.length)showCountry(f);else noChapter(f)})
    .pointsData(CHAPTERS).pointLat('la').pointLng('lo').pointAltitude(d=>d===sel?0.09:0.026).pointRadius(d=>d===sel?0.7:0.42)
    .pointColor(d=>d===sel?'#ffffff':GC[d.st]).pointsMerge(false).pointResolution(16)
    .pointLabel(d=>`<div class="gtip">${flag(d.i)}<span>${esc(d.n)}<small>${esc(d.y)}, ${esc(d.c)} · ${STN[d.st]}</small></span></div>`)
@@ -1038,7 +1047,7 @@ function initMap(){
     if(ok){L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'© Esri, HERE, Garmin · © OpenStreetMap'}).addTo(M);M.setMaxZoom(16);M.createPane('labels');M.getPane('labels').style.zIndex=450;M.getPane('labels').style.pointerEvents='none';L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,pane:'labels'}).addTo(M)}
     else{M.setMaxZoom(8);M.attributionControl.setPrefix('Preview. Street names load on dama.org')}
     M.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
-    ctyLayer=L.geoJSON(flatCountries,{style:f=>mapStyle(f,ok),onEachFeature:(f,l)=>{l.bindTooltip(clabel(f),{sticky:true,className:'ltip',opacity:1});l.on('click',()=>{if(f.properties.ch.length)showCountry(countries.find(c=>c.properties===f.properties))})}}).addTo(M);
+    ctyLayer=L.geoJSON(flatCountries,{style:f=>mapStyle(f,ok),onEachFeature:(f,l)=>{l.bindTooltip(clabel(f),{sticky:true,className:'ltip',opacity:1});l.on('click',()=>{if(f.properties.ch.length)showCountry(countries.find(c=>c.properties===f.properties));else noChapter(f)})}}).addTo(M);
     M.on('zoomend',()=>ctyLayer.setStyle(f=>mapStyle(f,ok)));
   });
   CHAPTERS.forEach(c=>{const mk=L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="mk" style="--c:${GC[c.st]}"><b style="animation-delay:-${(c.id*0.37)%2.4}s"></b><i></i></div>`,iconSize:[14,14]}),title:c.n,keyboard:true,zIndexOffset:500}).addTo(M);
@@ -1051,7 +1060,7 @@ function refreshMap(){ if(!M)return;
   if(you){youMk=L.marker([you.la,you.lo],{icon:L.divIcon({className:'',html:'<div class="mk you" style="--c:#f28c28"><b></b><i></i></div>',iconSize:[14,14]}),interactive:false}).addTo(M)}
 }
 function showCountry(f){
-  cty=f; sel=null; you=null; nearest=[]; document.getElementById('lgYou').hidden=true;
+  cty=f; sel=null; you=null; nearest=[]; gap=null; document.getElementById('lgYou').hidden=true;
   renderSide(); refreshGlobe(); refreshMap(); highlightRow();
   const c=centroid(f), pts=f.properties.ch;
   if(view==='globe'&&G){G.controls().autoRotate=false;G.pointOfView({lat:pts.length?pts.reduce((a,p)=>a+p.la,0)/pts.length:c.la,lng:pts.length?pts.reduce((a,p)=>a+p.lo,0)/pts.length:c.lo,altitude:1.3},1300)}
@@ -1067,6 +1076,8 @@ function select(c,{fly=true}={}){sel=c;renderSide();refreshGlobe();refreshMap();
 function showNearest(place){
   cty=null; you=place; nearest=CHAPTERS.map(c=>({c,d:hav(place.la,place.lo,c.la,c.lo)})).sort((a,b)=>a.d-b.d).slice(0,3);
   CHAPTERS.forEach(c=>c.dist=null); nearest.forEach(x=>x.c.dist=x.d); sel=nearest[0].c;
+  const d0=nearest[0].d, inCountry=place.cc?CHAPTERS.some(c=>c.i===place.cc):(place.cf?place.cf.properties.ch.length>0:null);
+  gap=(inCountry===false)?{none:true,where:place.cname||place.label,d:d0}:(d0>250?{none:false,where:place.label==='your location'?'you':place.label,d:d0}:null);
   document.getElementById('lgYou').hidden=false; renderSide(); refreshGlobe(); refreshMap(); highlightRow();
   const far=nearest[nearest.length-1].d;
   if(view==='globe'&&G){G.controls().autoRotate=false;G.pointOfView({lat:place.la,lng:place.lo,altitude:Math.min(2.2,Math.max(1.15,far/2600))},1500)}
@@ -1088,17 +1099,17 @@ const ALIAS={usa:'United States of America','united states':'United States of Am
 const q=document.getElementById('q'), sug=document.getElementById('sug'); let S=[],act=-1;
 function suggest(v){const n=norm(v);if(n.length<2)return[];const o=[];
   CHAPTERS.forEach(c=>{if(c.key.includes(n))o.push({k:'chapter',label:c.n,sub:'Chapter',i:c.i,c,la:c.la,lo:c.lo,s:norm(c.n).startsWith('dama '+n)?0:1})});
-  cFeat.forEach(x=>{const nm=norm(x.name);if(nm.startsWith(n)||ALIAS[n]===x.name){const ct=d3c(x.f);o.push({k:'country',label:x.name,sub:'Country',la:ct[1],lo:ct[0],s:1.5})}});
+  cFeat.forEach(x=>{const nm=norm(x.name);if(nm.startsWith(n)||ALIAS[n]===x.name){const ct=d3c(x.f);o.push({k:'country',label:x.name,sub:'Country',la:ct[1],lo:ct[0],s:1.5,f:x.f})}});
   let h=0;for(const g of GAZ){if(h>=8)break;if(norm(g[0]).startsWith(n)){o.push({k:'city',label:g[0],sub:CNAMES[g[1]]||g[1],i:g[1],la:g[2],lo:g[3],s:2-Math.min(.5,g[4]/2e7)});h++}}
   return o.sort((a,b)=>a.s-b.s).slice(0,8)}
 function d3c(f){let x=0,y=0,n=0;const walk=a=>{if(typeof a[0]==='number'){x+=a[0];y+=a[1];n++}else a.forEach(walk)};walk(f.geometry.coordinates);return[x/n,y/n]}
 function drawSug(){if(!S.length){sug.hidden=true;return}sug.innerHTML=S.map((s,i)=>`<button type="button" role="option" aria-selected="${i===act}" data-i="${i}">${s.i?flag(s.i):''}<span>${esc(s.label)}</span><small>${esc(s.sub)}</small></button>`).join('');sug.hidden=false;sug.querySelectorAll('button').forEach(b=>b.onmousedown=e=>{e.preventDefault();pick(S[+b.dataset.i])})}
-function pick(s){sug.hidden=true;S=[];if(TOUCH)q.blur();q.value=s.label;if(s.k==='chapter'){you=null;nearest=[];document.getElementById('lgYou').hidden=true;select(s.c)}else showNearest({la:s.la,lo:s.lo,label:s.label})}
+function pick(s){sug.hidden=true;S=[];if(TOUCH)q.blur();q.value=s.label;if(s.k==='chapter'){you=null;nearest=[];gap=null;document.getElementById('lgYou').hidden=true;select(s.c)}else showNearest({la:s.la,lo:s.lo,label:s.label,cc:s.k==='city'?s.i:null,cname:s.k==='city'?(CNAMES[s.i]||s.i):s.label,cf:s.f||null})}
 q.addEventListener('input',()=>{S=suggest(q.value);act=-1;drawSug()});
 q.addEventListener('keydown',e=>{if(e.key==='ArrowDown'&&S.length){e.preventDefault();act=(act+1)%S.length;drawSug()}else if(e.key==='ArrowUp'&&S.length){e.preventDefault();act=(act-1+S.length)%S.length;drawSug()}else if(e.key==='Enter'){e.preventDefault();go()}else if(e.key==='Escape')sug.hidden=true});
 q.addEventListener('blur',()=>setTimeout(()=>sug.hidden=true,150));
-function msg(t){nearest=[];sel=null;renderSide();side.insertAdjacentHTML('afterbegin',`<div class="empty-side" style="color:#b54708">${t}</div>`)}
-function go(){if(!q.value.trim()){q.focus();return}const s=S[act>=0?act:0]||suggest(q.value)[0];if(!s){msg(`We couldn’t find “${esc(q.value)}”. Try a larger nearby city or the country.`);return}
+function msg(t,cta){nearest=[];sel=null;gap=null;moved=true;renderSide();side.insertAdjacentHTML('afterbegin',`<div class="empty-side" style="color:#b54708">${t}</div>`+(cta?`<div class="startcta"><b>Don’t see a chapter for your area?</b><p>DAMA chapters are started by local members. See what it takes to start one.</p><a href="https://dama.org/chapters-community/start-a-chapter/" target="_top" rel="noopener">Start a chapter &#8594;</a></div>`:''));updReset()}
+function go(){if(!q.value.trim()){q.focus();return}const s=S[act>=0?act:0]||suggest(q.value)[0];if(!s){msg(`We couldn’t find “${esc(q.value)}”. Try a larger nearby city or the country.`,true);return}
   sug.hidden=true; S=[]; if(TOUCH)q.blur();
   if(s.k==='chapter')showNearest({la:s.la,lo:s.lo,label:s.c.y});else pick(s)}
 document.getElementById('nearestBtn').onclick=go;
